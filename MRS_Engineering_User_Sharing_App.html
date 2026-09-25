@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MRS Engineering</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#eef2f5;color:#17212b}
+header{background:#17365d;color:#fff;padding:14px;position:sticky;top:0;z-index:5}
+header h2{margin:0 0 5px;font-size:20px}.container{padding:10px;max-width:1100px;margin:auto}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 2px 7px #0002}
+.login{max-width:380px;margin:55px auto}.login h2{text-align:center}
+label{font-weight:bold;font-size:13px;display:block;margin:7px 0 3px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #bcc7d1;border-radius:6px;font-size:15px}
+button{background:#1769aa;color:#fff;border:0;border-radius:6px;padding:10px 13px;margin:4px 2px;font-size:14px}
+button.red{background:#b3261e}button.gray{background:#607d8b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.nav{display:flex;gap:5px;overflow:auto;margin-bottom:10px}.nav button{white-space:nowrap}
+.hidden{display:none!important}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}
+.kpi{background:#edf4fa;padding:12px;border-radius:7px}.kpi b{display:block;font-size:19px;margin-top:5px}
+.tablewrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:650px;font-size:12px}
+th,td{border:1px solid #d4dbe1;padding:7px;text-align:left}th{background:#e8eef3}
+.note{font-size:12px;color:#5c6973}.success{color:#087f23;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div id="loginPage" class="card login">
+<h2>MRS Engineering</h2>
+<label>Username</label><input id="loginUser">
+<label>Password</label><input id="loginPass" type="password">
+<button style="width:100%;margin-top:12px" onclick="doLogin()">LOGIN</button>
+<p class="note">Demo users:<br>Admin: admin / admin123<br>Manager: manager / manager123<br>Operator: operator / operator123</p>
+</div>
+
+<div id="mainApp" class="hidden">
+<header>
+<h2>MRS Engineering</h2>
+<div id="userInfo"></div>
+</header>
+<div class="container">
+<div id="nav" class="nav"></div><button class="gray" onclick="refreshApp()">↻ REFRESH</button>
+
+<div id="dashboard" class="card">
+<h3>Dashboard</h3><div id="kpis" class="kpis"></div>
+</div>
+
+<div id="jobPage" class="card hidden">
+<h3>Job / PO</h3>
+<div class="grid">
+<div><label>Customer</label><input id="jCustomer"></div>
+<div><label>PO No.</label><input id="jPO"></div>
+<div><label>PO Date</label><input id="jPODate" type="date"></div>
+<div><label>Part No.</label><input id="jPart"></div>
+<div><label>Description</label><input id="jDesc"></div>
+<div><label>Drawing File</label><input id="jDrawingPDF" type="file" accept=".pdf,.dwg,.dxf,.step,.stp,.sldprt,.jpg,.jpeg,.png"></div>
+<div><label>Order Qty</label><input id="jQty" type="number"></div>
+<div><label>PO Rate / Part ₹</label><input id="jRate" type="number"></div>
+<div><label>Schedule Date</label><input id="jSchedule" type="date"></div>
+<div><label>Dispatched Date</label><input id="jDispatch" type="date"></div>
+<div><label>Invoice No.</label><input id="jInvoiceNo"></div>
+<div><label>Invoice Date</label><input id="jInvoiceDate" type="date" onchange="autoPaymentDue()"></div>
+<div><label>Invoice Amount ₹</label><input id="jInvoice" type="number"></div>
+<div><label>Paid Amount ₹</label><input id="jPaid" type="number"></div>
+<div><label>Payment Due Date (45 Days)</label><input id="jDue" type="date" readonly></div>
+<div><label>Status</label><select id="jStatus"><option>Planned</option><option>In Process</option><option>Completed</option><option>Dispatched</option><option>Closed</option></select></div>
+</div>
+<button onclick="addJob()">SAVE / UPDATE JOB</button><button class="gray" onclick="clearJob();editType=null;editIndex=-1">CLEAR / CANCEL</button>
+<span id="drawingFileStatus" class="note"></span><p class="note">Attach PDF, DWG, DXF, STEP, SLDPRT, JPG or PNG drawing file (maximum 15 MB).</p>
+<div id="jobTable" class="tablewrap"></div>
+</div>
+
+<div id="rawPage" class="card hidden">
+<h3>Raw Material Calculator</h3>
+<div class="grid">
+<div><label>Parent PO / Part</label><input id="rParent"></div>
+<div><label>Material Grade</label><input id="rGrade" placeholder="C45 / EN8 / EN19"></div>
+<div><label>Shape</label><select id="rShape" onchange="updateLabels()">
+<option value="round">Solid Round Bar</option><option value="square">Solid Square Bar</option>
+<option value="rect">Solid Rectangular Bar</option><option value="roundpipe">Round Pipe</option>
+<option value="squarepipe">Square Pipe / Tube</option><option value="rectpipe">Rectangular Pipe / Tube</option>
+<option value="angle">L-Angle</option><option value="flat">Flat Bar</option><option value="plate">Plate / Sheet</option>
+</select></div>
+<div><label id="lab1">Diameter mm</label><input id="rD1" type="number"></div>
+<div><label id="lab2">Dimension 2 mm</label><input id="rD2" type="number"></div>
+<div><label id="lab3">Dimension 3 mm</label><input id="rD3" type="number"></div>
+<div><label id="lab4">Dimension 4 mm</label><input id="rD4" type="number"></div>
+<div><label>Length mm</label><input id="rLength" type="number"></div>
+<div><label>Quantity</label><input id="rQty" type="number" value="1"></div>
+<div><label>Density (kg/m³) — enter 7850 or 7.85</label><input id="rDensity" type="number" value="7850" step="0.001"></div>
+<div><label>Price ₹ / kg</label><input id="rPrice" type="number"></div>
+<div><label>Wastage %</label><input id="rWaste" type="number" value="0"></div>
+</div>
+<p id="shapeNote" class="note"></p><p class="note"><b>Density:</b> Steel can be entered as <b>7850 kg/m³</b> or <b>7.85 g/cm³</b>; the app automatically converts 7.85 to 7850.</p>
+<button onclick="calculateRM()">CALCULATE</button><button onclick="saveRM()">SAVE / UPDATE RAW MATERIAL</button><button class="gray" onclick="recalculateAllRaw()">RECALCULATE ALL RAW MATERIAL</button>
+<div id="rmResult" class="card"></div>
+<div id="rawTable" class="tablewrap"></div>
+</div>
+
+<div id="processPage" class="card hidden">
+<h3>Child Part / Process Sequence</h3>
+<div class="grid">
+<div><label>Sequence No.</label><input id="pSeq" type="number" min="1" placeholder="1, 2, 3..."></div>
+<div><label>Parent PO / Part</label><input id="pParent"></div>
+<div><label>Child Part / Operation</label><input id="pChild"></div>
+<div><label>Process Type</label><select id="pType">
+<option value="">Select Process</option>
+<option>Raw Material Cutting</option><option>Turning</option><option>Facing</option><option>Drilling</option>
+<option>Milling</option><option>Boring</option><option>Threading</option><option>Grinding</option>
+<option>Wire EDM</option><option>Heat Treatment</option><option>Welding</option><option>Fabrication</option>
+<option>Shot Blasting</option><option>Painting</option><option>Surface Treatment</option><option>Inspection</option>
+<option>Assembly</option><option>Other</option>
+</select></div>
+<div><label>Qty</label><input id="pQty" type="number" min="0"></div>
+<div><label>Process Cost / Part ₹</label><input id="pCost" type="number" min="0"></div>
+<div><label>Target Date</label><input id="pTarget" type="date"></div>
+<div><label>Status</label><select id="pStatus"><option>Pending</option><option>In Process</option><option>Completed</option><option>Hold</option><option>Cancelled</option></select></div>
+</div>
+<button onclick="saveProcess()">SAVE / UPDATE PROCESS</button>
+<button class="gray" onclick="clearProcess()">CLEAR</button>
+<button class="gray" onclick="sortProcesses()">SORT SEQUENCE</button>
+<div id="processTable" class="tablewrap"></div>
+</div>
+
+<div id="trackPage" class="card hidden">
+<h3>Tracking & Excel Export</h3>
+<button onclick="exportCSV('jobs')">EXPORT JOBS EXCEL</button>
+<button onclick="exportCSV('raw')">EXPORT RAW MATERIAL EXCEL</button>
+<button onclick="exportCSV('process')">EXPORT PROCESS EXCEL</button>
+<button onclick="exportCSV('payments')">EXPORT PAYMENTS EXCEL</button>
+<button onclick="exportCSV('all')">EXPORT ALL DATA</button>
+<p class="note">The exported CSV files open directly in Microsoft Excel.</p>
+<div id="paymentTable" class="tablewrap"></div>
+</div>
+
+<div id="partReportPage" class="card hidden">
+<h3>Part-Wise Complete Report</h3>
+<div class="grid">
+<div><label>Search Part No.</label><input id="partSearch" oninput="renderPartReport()" placeholder="Enter part number"></div>
+<div><label>Customer</label><input id="partCustomer" oninput="renderPartReport()" placeholder="Optional"></div>
+</div>
+<button onclick="exportPartReport()">EXPORT PART-WISE EXCEL</button>
+<div id="partReportTable" class="tablewrap"></div>
+</div>
+
+<div id="sharePage" class="card hidden">
+<h3>MRS Engineering - User Link Sharing</h3>
+<div class="card">
+<b>Private Link Sharing</b>
+<p class="note">A link can only work on another phone when the MRS Engineering app file is stored at an online/private share location such as Google Drive, OneDrive, Dropbox, or your company website. The <b>content://downloads/...</b> address on your phone is not a shareable link.</p>
+</div>
+
+<label>Private App File Link</label>
+<input id="privateAppLink" placeholder="Paste your Google Drive / OneDrive / Dropbox / website link">
+<p id="linkStatus" class="note"></p>
+
+<label>Select User</label>
+<select id="shareUser" onchange="updateInvite()"></select>
+
+<div class="card">
+<label>User Share Message</label>
+<textarea id="inviteText" rows="7"></textarea>
+</div>
+
+<button onclick="savePrivateLink()">SAVE LINK</button>
+<button onclick="copyPrivateLink()">COPY LINK</button>
+<button onclick="sharePrivateWhatsApp()">WHATSAPP</button>
+<button onclick="sharePrivateEmail()">EMAIL</button>
+<button onclick="sharePrivateNative()">MORE SHARE</button>
+
+<div class="card">
+<h4>Recommended private method</h4>
+<ol class="note">
+<li>Upload the MRS Engineering HTML file to Google Drive or another private storage.</li>
+<li>Set access to the authorized users only.</li>
+<li>Copy the file's sharing link.</li>
+<li>Paste the link above.</li>
+<li>Select the user and share through WhatsApp/Email.</li>
+</ol>
+<p class="note"><b>Security:</b> Do not put passwords inside the link. Send login credentials separately.</p>
+</div>
+</div>
+
+<div id="usersPage" class="card hidden">
+<h3>Users, Rights & Sharing</h3>
+<div class="card">
+<b>Share App</b><br>
+<button onclick="shareApp()">SHARE APP</button>
+<button onclick="copyAppInfo()">COPY SHARING INFO</button>
+<p class="note">Use Android Share to send the app file through WhatsApp, Email, Drive, etc. Each user logs in with their own account. For one common database across all phones, a cloud/server version is required.</p>
+</div>
+<div class="grid">
+<div><label>Username</label><input id="newUser"></div>
+<div><label>Password</label><input id="newPass"></div>
+<div><label>Role</label><select id="newRole"><option>Manager</option><option>Operator</option><option>Admin</option></select></div>
+</div>
+<button onclick="addUser()">ADD USER</button>
+<div id="usersTable" class="tablewrap"></div>
+<p class="note">Admin: full access. Manager: jobs, raw material, process and export. Operator: view dashboard/tracking only. Share this HTML file with authorized users. Each device has separate local data; common synchronized data needs a cloud database.</p>
+</div>
+
+</div></div>
+
+<script>
+const defaultDB={
+ users:[
+  {username:"admin",password:"admin123",role:"Admin"},
+  {username:"manager",password:"manager123",role:"Manager"},
+  {username:"operator",password:"operator123",role:"Operator"}
+ ],
+ jobs:[],raw:[],processes:[]
+};
+let db=JSON.parse(localStorage.getItem("industrialJobDB")||"null")||defaultDB;
+let currentUser=null;
+
+function persist(){localStorage.setItem("industrialJobDB",JSON.stringify(db));}
+function can(page){
+ if(currentUser.role==="Admin")return true;
+ if(currentUser.role==="Manager")return ["dashboard","jobPage","rawPage","processPage","trackPage"].includes(page);
+ return ["dashboard","trackPage"].includes(page);
+}
+function doLogin(){
+ const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;
+ const found=db.users.find(x=>x.username===u&&x.password===p);
+ if(!found){alert("Invalid username or password");return;}
+ currentUser=found;
+ document.getElementById("loginPage").classList.add("hidden");
+ document.getElementById("mainApp").classList.remove("hidden");
+ document.getElementById("userInfo").textContent="User: "+found.username+" | Role: "+found.role;
+ buildNav();showPage("dashboard");render();
+}
+function logout(){location.reload();}
+function buildNav(){
+ const nav=document.getElementById("nav");nav.innerHTML="";
+ const pages=[["dashboard","Dashboard"],["jobPage","Job / PO"],["rawPage","Raw Material"],["processPage","Child Process"],["partReportPage","Part-Wise Report"],["trackPage","Tracking & Excel"],["sharePage","Share User App"]];
+ if(currentUser.role==="Admin")pages.push(["usersPage","Users & Rights"]);
+ pages.forEach(([id,label])=>{const b=document.createElement("button");b.textContent=label;b.onclick=()=>showPage(id);nav.appendChild(b);});
+}
+function showPage(id){
+ ["dashboard","jobPage","rawPage","processPage","partReportPage","trackPage","sharePage","usersPage"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ render();
+}
+async function addJob(){
+ if(currentUser.role==="Operator")return;
+ const file=document.getElementById("jDrawingPDF").files[0];
+ let pdfData=(editType==="jobs"&&editIndex>=0)?(db.jobs[editIndex].drawingPDF||""):"";
+ let pdfName=(editType==="jobs"&&editIndex>=0)?(db.jobs[editIndex].drawingPDFName||""):"";
+ if(file){
+   if(file.size>15*1024*1024){alert("Drawing file is too large. Please use a file below 15 MB.");return;}
+   pdfData=await fileToDataURL(file); pdfName=file.name;
+ }
+ autoPaymentDue();
+ const record={
+  customer:jCustomer.value,po:jPO.value,poDate:jPODate.value,part:jPart.value,description:jDesc.value,
+  drawingPDF:pdfData,drawingPDFName:pdfName,
+  qty:+jQty.value||0,rate:+jRate.value||0,schedule:jSchedule.value,dispatchDate:jDispatch.value,
+  invoiceNo:jInvoiceNo.value,invoiceDate:jInvoiceDate.value,invoice:+jInvoice.value||0,
+  paid:+jPaid.value||0,due:jDue.value,status:jStatus.value
+ };
+ if(editType==="jobs" && editIndex>=0) db.jobs[editIndex]=record;
+ else db.jobs.push(record);
+ editType=null;editIndex=-1;
+ persist();clearJob();render();
+}
+function fileToDataURL(file){
+ return new Promise((resolve,reject)=>{
+  const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);
+ });
+}
+function autoPaymentDue(){
+ const v=document.getElementById("jInvoiceDate").value;
+ if(!v){document.getElementById("jDue").value="";return;}
+ const d=new Date(v+"T00:00:00"); d.setDate(d.getDate()+45);
+ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
+ document.getElementById("jDue").value=`${y}-${m}-${day}`;
+}
+function openDrawingFile(i){
+ const r=db.jobs[i];
+ if(!r.drawingPDF){alert("No drawing file attached.");return;}
+ const w=window.open();
+ if(w){w.document.write('<title>'+String(r.drawingPDFName||"Drawing")+'</title><iframe src="'+r.drawingPDF+'" style="width:100%;height:100vh;border:0"></iframe>');}
+}
+function clearJob(){
+ ["jCustomer","jPO","jPODate","jPart","jDesc","jQty","jRate","jSchedule","jDispatch","jInvoiceNo","jInvoiceDate","jInvoice","jPaid","jDue"].forEach(x=>document.getElementById(x).value="");
+ document.getElementById("drawingFileStatus").textContent="";
+ document.getElementById("jDrawingPDF").value="";
+}
+function updateLabels(){
+ const s=rShape.value;
+ const labels={
+ round:["Diameter mm","","","","D1 = diameter"],
+ square:["Side mm","","","","D1 = side"],
+ rect:["Width mm","","Height mm","","D1 = width, D3 = height"],
+ roundpipe:["OD mm","ID mm","","","D1 = OD, D2 = ID"],
+ squarepipe:["Outer side mm","Inner side mm","","","D1 = outer side, D2 = inner side"],
+ rectpipe:["Outer width mm","Outer height mm","Wall thickness mm","","D1 = outer width, D2 = outer height, D3 = wall thickness"],
+ angle:["Leg A mm","Leg B mm","Thickness mm","","D1 = A, D2 = B, D3 = thickness"],
+ flat:["Width mm","","","Thickness mm","D1 = width, D4 = thickness"],
+ plate:["Width mm","","Length mm","Thickness mm","D1 = width, D3 = length, D4 = thickness"]
+ }[s];
+ [lab1.textContent,lab2.textContent,lab3.textContent,lab4.textContent]=labels.slice(0,4);
+ shapeNote.textContent=labels[4];
+}
+function pieceWeight(){
+ const a=+rD1.value||0,b=+rD2.value||0,c=+rD3.value||0,t=+rD4.value||0,L=+rLength.value||0;
+ let D=+rDensity.value||0; const s=rShape.value;
+ if(D>0 && D<100) D=D*1000; // accept 7.85 as steel density; convert g/cm³ to kg/m³
+ if(D<=0)return 0;
+ if(s==="plate")return (a*c*t*D)/1e9;
+ let area=0;
+ if(s==="round")area=Math.PI*a*a/4;
+ else if(s==="square")area=a*a;
+ else if(s==="rect")area=a*c;
+ else if(s==="roundpipe")area=Math.PI*(a*a-b*b)/4;
+ else if(s==="squarepipe")area=a*a-b*b;
+ else if(s==="rectpipe"){
+   const iw=a-2*c, ih=b-2*c;
+   if(iw<0||ih<0)return 0;
+   area=a*b-iw*ih;
+ }
+ else if(s==="angle")area=a*c+b*c-c*c;
+ else if(s==="flat")area=a*t;
+ return area*(L/1000)*D/1000000;
+}
+function calculateRM(){
+ const w=pieceWeight(),q=+rQty.value||0,wa=+rWaste.value||0,total=w*q*(1+wa/100),cost=total*(+rPrice.value||0);
+ rmResult.innerHTML="<b>Weight / Piece:</b> "+w.toFixed(3)+" kg<br><b>Total Weight:</b> "+total.toFixed(3)+" kg<br><b>Total Cost:</b> ₹"+cost.toFixed(2);
+ return {w,total,cost};
+}
+function calculateRecordRM(r){
+ const a=+r.D1||0,b=+r.D2||0,c=+r.D3||0,t=+r.D4||0,L=+r.length||0;
+ let D=+r.density||0; if(D>0&&D<100)D*=1000;
+ const s=r.shape; let area=0;
+ if(s==="round")area=Math.PI*a*a/4;
+ else if(s==="square")area=a*a;
+ else if(s==="rect")area=a*c;
+ else if(s==="roundpipe")area=Math.PI*(a*a-b*b)/4;
+ else if(s==="squarepipe")area=a*a-b*b;
+ else if(s==="rectpipe"){const iw=a-2*c,ih=b-2*c;if(iw<0||ih<0)return {total:0,cost:0};area=a*b-iw*ih;}
+ else if(s==="angle")area=a*t+b*t-t*t;
+ else if(s==="flat")area=a*t;
+ let w=(s==="plate")?(a*c*t*D/1e9):(area*(L/1000)*D/1000000);
+ const total=w*(+r.qty||0)*(1+(+r.waste||0)/100);
+ return {total,cost:total*(+r.price||0)};
+}
+function recalculateAllRaw(){
+ if(currentUser.role==="Operator"){alert("You do not have edit rights.");return;}
+ db.raw.forEach(r=>{const x=calculateRecordRM(r);r.totalWeight=x.total;r.totalCost=x.cost;});
+ persist();render();alert("All raw-material weights and costs recalculated using the corrected density.");
+}
+function saveRM(){
+ if(currentUser.role==="Operator")return;
+ const x=calculateRM();
+ const record={parent:rParent.value,grade:rGrade.value,shape:rShape.value,D1:rD1.value,D2:rD2.value,D3:rD3.value,D4:rD4.value,length:rLength.value,qty:rQty.value,density:rDensity.value,price:rPrice.value,waste:rWaste.value,totalWeight:x.total,totalCost:x.cost};
+ if(editType==="raw" && editIndex>=0) db.raw[editIndex]=record; else db.raw.push(record);
+ editType=null;editIndex=-1;persist();render();
+}
+function saveProcess(){
+ if(currentUser.role==="Operator")return;
+ if(!pParent.value.trim()){alert("Enter Parent PO / Part.");return;}
+ if(!pType.value){alert("Select Process Type.");return;}
+ const record={sequence:+pSeq.value||1,parent:pParent.value,child:pChild.value,type:pType.value,qty:+pQty.value||0,cost:+pCost.value||0,target:pTarget.value,status:pStatus.value};
+ if(editType==="processes" && editIndex>=0) db.processes[editIndex]=record; else db.processes.push(record);
+ editType=null;editIndex=-1;persist();sortProcesses(false);clearProcess();render();
+}
+function clearProcess(){
+ ["pSeq","pParent","pChild","pQty","pCost","pTarget"].forEach(id=>document.getElementById(id).value="");
+ pType.value="";pStatus.value="Pending";editType=null;editIndex=-1;
+}
+function sortProcesses(showMessage=true){
+ db.processes.sort((a,b)=>(+a.sequence||0)-(+b.sequence||0));
+ persist();render();
+ if(showMessage)alert("Process sequence sorted.");
+}
+function payments(){
+ return db.jobs.map(x=>({...x,balance:(x.invoice||0)-(x.paid||0),paymentStatus:x.invoice>0&&x.paid>=x.invoice?"Paid":x.paid>0?"Part Paid":"Pending"}));
+}
+let editType=null, editIndex=-1;
+function refreshApp(){
+ render();
+ updateLabels();
+ alert("Data refreshed.");
+}
+function deleteRecord(type,index){
+ if(currentUser.role==="Operator"){alert("You do not have delete rights.");return;}
+ if(!confirm("Delete this record?"))return;
+ if(type==="jobs")db.jobs.splice(index,1);
+ if(type==="raw")db.raw.splice(index,1);
+ if(type==="processes")db.processes.splice(index,1);
+ persist();render();
+}
+function editJob(i){
+ if(currentUser.role==="Operator")return alert("View-only user.");
+ const x=db.jobs[i];
+ jCustomer.value=x.customer||"";jPO.value=x.po||"";jPODate.value=x.poDate||"";jPart.value=x.part||"";
+ jDesc.value=x.description||"";jQty.value=x.qty||0;jRate.value=x.rate||0;
+ jSchedule.value=x.schedule||"";jDispatch.value=x.dispatchDate||"";jInvoiceNo.value=x.invoiceNo||"";
+ jInvoiceDate.value=x.invoiceDate||"";jInvoice.value=x.invoice||0;jPaid.value=x.paid||0;jDue.value=x.due||"";
+ jStatus.value=x.status||"Planned";
+ document.getElementById("drawingFileStatus").textContent=x.drawingPDFName?("Attached File: "+x.drawingPDFName):"No drawing file attached";
+ editType="jobs";editIndex=i;showPage("jobPage");
+}
+function editRaw(i){
+ if(currentUser.role==="Operator")return alert("View-only user.");
+ const x=db.raw[i];
+ rParent.value=x.parent||"";rGrade.value=x.grade||"";rShape.value=x.shape||"round";rD1.value=x.D1||0;rD2.value=x.D2||0;rD3.value=x.D3||0;rD4.value=x.D4||0;rLength.value=x.length||0;rQty.value=x.qty||1;rDensity.value=x.density||7850;rPrice.value=x.price||0;rWaste.value=x.waste||0;
+ editType="raw";editIndex=i;showPage("rawPage");calculateRM();
+}
+function editProcess(i){
+ if(currentUser.role==="Operator")return alert("View-only user.");
+ const x=db.processes[i];
+ pSeq.value=x.sequence||1;pParent.value=x.parent||"";pChild.value=x.child||"";pType.value=x.type||"";pQty.value=x.qty||0;pCost.value=x.cost||0;pTarget.value=x.target||"";pStatus.value=x.status||"Pending";
+ editType="processes";editIndex=i;showPage("processPage");
+}
+function rowActions(type,index){
+ if(currentUser.role==="Operator")return "";
+ let s='<button onclick="editRecord(\''+type+'\','+index+')">EDIT</button><button class="red" onclick="deleteRecord(\''+type+'\','+index+')">DELETE</button>';
+ if(type==="jobs" && db.jobs[index].drawingPDF)s+='<button onclick="openDrawingFile('+index+')">DRAWING FILE</button>';
+ return s;
+}
+function editRecord(type,index){
+ if(type==="jobs")editJob(index);
+ if(type==="raw")editRaw(index);
+ if(type==="processes")editProcess(index);
+}
+function makeTable(data,type){
+ if(!data.length)return "<p class='note'>No records available.</p>";
+ const keys=Object.keys(data[0]);let h="<table><tr>";
+ keys.forEach(k=>h+="<th>"+k+"</th>");
+ if(type)h+="<th>Actions</th>";
+ h+="</tr>";
+ data.forEach((r,i)=>{h+="<tr>";keys.forEach(k=>h+="<td>"+String(r[k]??"")+"</td>");if(type)h+="<td>"+rowActions(type,i)+"</td>";h+="</tr>";});
+ return h+"</table>";
+}
+function render(){
+ const po=db.jobs.reduce((s,x)=>s+x.qty*x.rate,0);
+ const rm=db.raw.reduce((s,x)=>s+x.totalCost,0);
+ const inv=db.jobs.reduce((s,x)=>s+x.invoice,0);
+ const paid=db.jobs.reduce((s,x)=>s+x.paid,0);
+ document.getElementById("kpis").innerHTML=
+ `<div class="kpi">Jobs<b>${db.jobs.length}</b></div>
+ <div class="kpi">PO Value<b>₹${po.toFixed(2)}</b></div>
+ <div class="kpi">Raw Material<b>₹${rm.toFixed(2)}</b></div>
+ <div class="kpi">Invoice<b>₹${inv.toFixed(2)}</b></div>
+ <div class="kpi">Paid<b>₹${paid.toFixed(2)}</b></div>
+ <div class="kpi">Balance<b>₹${(inv-paid).toFixed(2)}</b></div>`;
+ document.getElementById("jobTable").innerHTML=makeTable(db.jobs,"jobs");
+ document.getElementById("rawTable").innerHTML=makeTable(db.raw,"raw");
+ db.processes.forEach((x,i)=>{if(!x.sequence)x.sequence=i+1;});
+db.processes.sort((a,b)=>(+a.sequence||0)-(+b.sequence||0));
+document.getElementById("processTable").innerHTML=makeTable(db.processes,"processes");
+ document.getElementById("paymentTable").innerHTML=makeTable(payments());
+ renderPartReport();
+ if(currentUser.role==="Admin")document.getElementById("usersTable").innerHTML=makeTable(db.users);
+ updateLabels();
+}
+function downloadCSV(name,data){
+ if(!data.length){alert("No data to export");return;}
+ const keys=Object.keys(data[0]);
+ const lines=[keys.map(x=>csvCell(x)).join(",")];
+ data.forEach(r=>lines.push(keys.map(k=>csvCell(r[k])).join(",")));
+ const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name+".csv";document.body.appendChild(a);a.click();a.remove();
+}
+function csvCell(v){return '"'+String(v??"").replaceAll('"','""')+'"';}
+function exportCSV(type){
+ if(type==="jobs")downloadCSV("Jobs",db.jobs);
+ else if(type==="raw")downloadCSV("Raw_Materials",db.raw);
+ else if(type==="process")downloadCSV("Processes",db.processes);
+ else if(type==="payments")downloadCSV("Payments",payments());
+ else {downloadCSV("Jobs",db.jobs);setTimeout(()=>downloadCSV("Raw_Materials",db.raw),400);setTimeout(()=>downloadCSV("Processes",db.processes),800);setTimeout(()=>downloadCSV("Payments",payments()),1200);}
+}
+function addUser(){
+ if(currentUser.role!=="Admin")return;
+ const u=newUser.value.trim(),p=newPass.value,r=newRole.value;
+ if(!u||!p){alert("Enter username and password");return;}
+ if(db.users.some(x=>x.username===u)){alert("Username already exists");return;}
+ db.users.push({username:u,password:p,role:r});persist();newUser.value="";newPass.value="";render();
+}
+function shareApp(){
+ const data={title:"MRS Engineering",text:"MRS Engineering\nUsers & rights enabled.\nAdmin: admin/admin123\nManager: manager/manager123\nOperator: operator/operator123"};
+ if(navigator.share){navigator.share(data).catch(()=>{});}
+ else alert("Android Share is not available in this browser. Use Chrome and open the downloaded HTML file.");
+}
+function copyAppInfo(){
+ const text="MRS Engineering\nAdmin: admin/admin123\nManager: manager/manager123\nOperator: operator/operator123";
+ if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>alert("Sharing information copied."));
+ else alert(text);
+}
+function buildPartReport(){
+ const search=(document.getElementById("partSearch").value||"").toLowerCase();
+ const cust=(document.getElementById("partCustomer").value||"").toLowerCase();
+ const jobs=db.jobs.filter(j=>(!search||String(j.part).toLowerCase().includes(search))&&(!cust||String(j.customer).toLowerCase().includes(cust)));
+ return jobs.map(j=>{
+  const rms=db.raw.filter(r=>String(r.parent).toLowerCase().includes(String(j.part||"").toLowerCase())||String(r.parent).toLowerCase().includes(String(j.po||"").toLowerCase()));
+  const ps=db.processes.filter(x=>String(x.parent).toLowerCase().includes(String(j.part||"").toLowerCase())||String(x.parent).toLowerCase().includes(String(j.po||"").toLowerCase()));
+  const rmCost=rms.reduce((s,x)=>s+(+x.totalCost||0),0);
+  const processCost=ps.reduce((s,x)=>s+(+x.qty||0)*(+x.cost||0),0);
+  const sales=(+j.qty||0)*(+j.rate||0);
+  return {Customer:j.customer,"PO No.":j.po,"Part No.":j.part,Description:j.description,"Order Qty":j.qty,"PO Rate ₹":j.rate,"PO Value ₹":sales,"Raw Material ₹":rmCost,"Process Cost ₹":processCost,"Invoice ₹":j.invoice,"Paid ₹":j.paid,"Balance ₹":(+j.invoice||0)-(+j.paid||0),"Status":j.status,"Due Date":j.due};
+ });
+}
+function renderPartReport(){
+ const data=buildPartReport();
+ document.getElementById("partReportTable").innerHTML=makeTable(data);
+}
+function exportPartReport(){downloadCSV("Part_Wise_Report",buildPartReport());}
+function copyLink(){
+ const v=document.getElementById("appLink").value.trim();
+ if(!v)return alert("Enter the public app link first.");
+ if(navigator.clipboard)navigator.clipboard.writeText(v).then(()=>alert("App link copied."));
+ else prompt("Copy this app link:",v);
+}
+function shareWhatsApp(){
+ const v=document.getElementById("appLink").value.trim();
+ if(!v)return alert("Enter the public app link first.");
+ window.open("https://wa.me/?text="+encodeURIComponent("MRS Engineering App: "+v),"_blank");
+}
+function shareEmail(){
+ const v=document.getElementById("appLink").value.trim();
+ if(!v)return alert("Enter the public app link first.");
+ location.href="mailto:?subject="+encodeURIComponent("MRS Engineering App Link")+"&body="+encodeURIComponent("Open MRS Engineering App: "+v);
+}
+function shareNative(){
+ const v=document.getElementById("appLink").value.trim();
+ if(!v)return alert("Enter the public app link first.");
+ if(navigator.share) navigator.share({title:"MRS Engineering",text:"MRS Engineering App",url:v}).catch(()=>{});
+ else alert("More sharing is not supported by this browser. Use Copy Link or WhatsApp.");
+}
+updateLabels();
+refreshShareUsers();
+document.getElementById("jInvoiceDate")?.addEventListener("change",autoPaymentDue);
+document.getElementById("privateAppLink")?.addEventListener("input",updateInvite);
+loadPrivateLink();
+</script>
+
+<section id="user-sharing" style="margin:20px 0;padding:18px;border:1px solid #d7dee8;border-radius:14px;background:#f8fafc">
+  <h2 style="margin-top:0">🔗 Share MRS Engineering with Users</h2>
+  <p style="margin:6px 0 12px;color:#475569">
+    Share this app file through WhatsApp, Email or Android More Share Options.
+    For a true HTTPS link that users can open from anywhere, this HTML file must be hosted online.
+  </p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button type="button" onclick="shareMRSApp()" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:600">📤 Share App</button>
+    <button type="button" onclick="copyMRSShareInstructions()" style="padding:10px 14px;border:1px solid #94a3b8;border-radius:9px;background:white;font-weight:600">📋 Copy Sharing Message</button>
+  </div>
+  <div id="mrs-share-status" style="margin-top:10px;color:#166534;font-weight:600"></div>
+</section>
+<script>
+function mrsShareText() {
+  return "MRS Engineering Industrial App\\n\\nPlease open the MRS Engineering app using the app file/link shared with you.\\n\\nLogin credentials will be provided separately by the administrator.";
+}
+async function shareMRSApp() {
+  const text = mrsShareText();
+  try {
+    if (navigator.share) {
+      await navigator.share({title:"MRS Engineering App", text:text});
+      document.getElementById("mrs-share-status").textContent = "Sharing options opened.";
+    } else {
+      await navigator.clipboard.writeText(text);
+      document.getElementById("mrs-share-status").textContent = "Sharing message copied. Use WhatsApp/Email to send it.";
+    }
+  } catch(e) {
+    document.getElementById("mrs-share-status").textContent = "Sharing cancelled.";
+  }
+}
+async function copyMRSShareInstructions() {
+  try {
+    await navigator.clipboard.writeText(mrsShareText());
+    document.getElementById("mrs-share-status").textContent = "Sharing message copied.";
+  } catch(e) {
+    document.getElementById("mrs-share-status").textContent = "Please copy the message manually.";
+  }
+}
+</script>
+</body>
+</html>
