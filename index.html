@@ -598,7 +598,11 @@ async function copyMRSShareInstructions() {
   } catch(e) {
     document.getElementById("mrs-share-status").textContent = "Please copy the message manually.";
   }
-}
+}document.querySelectorAll("button").forEach(function(btn) {
+  if (btn.textContent.trim().toUpperCase() === "LOGIN") {
+    btn.addEventListener("click", doLogin);
+  }
+});
 </script>
 </body>
 </html>
