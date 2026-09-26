@@ -564,10 +564,9 @@ loadPrivateLink();
 <section id="user-sharing" style="margin:20px 0;padding:18px;border:1px solid #d7dee8;border-radius:14px;background:#f8fafc">
   <h2 style="margin-top:0">🔗 Share MRS Engineering with Users</h2>
   <p style="margin:6px 0 12px;color:#475569">
-    Share the live MRS Engineering app link through WhatsApp, Email or Android More Share Options.
-    Users can open the app directly from anywhere using the HTTPS link below.
+    Share this app file through WhatsApp, Email or Android More Share Options.
+    For a true HTTPS link that users can open from anywhere, this HTML file must be hosted online.
   </p>
-  <div style="margin:8px 0 14px;padding:10px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;word-break:break-all;font-weight:600">https://tippusultan2209.github.io/mrs-engineering/</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
     <button type="button" onclick="shareMRSApp()" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:600">📤 Share App</button>
     <button type="button" onclick="copyMRSShareInstructions()" style="padding:10px 14px;border:1px solid #94a3b8;border-radius:9px;background:white;font-weight:600">📋 Copy Sharing Message</button>
@@ -575,41 +574,29 @@ loadPrivateLink();
   <div id="mrs-share-status" style="margin-top:10px;color:#166534;font-weight:600"></div>
 </section>
 <script>
-const MRS_APP_URL = "https://tippusultan2209.github.io/mrs-engineering/";
 function mrsShareText() {
-  return "MRS Engineering App\\n\\nOpen the app here:\\n" + MRS_APP_URL + "\\n\\nLogin credentials will be provided separately by the administrator.";
+  return "MRS Engineering Industrial App\\n\\nPlease open the MRS Engineering app using the app file/link shared with you.\\n\\nLogin credentials will be provided separately by the administrator.";
 }
 async function shareMRSApp() {
   const text = mrsShareText();
   try {
     if (navigator.share) {
-      await navigator.share({title:"MRS Engineering App", text:text, url:MRS_APP_URL});
-      document.getElementById("mrs-share-status").textContent = "App link sharing options opened.";
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      document.getElementById("mrs-share-status").textContent = "App link copied. Send it by WhatsApp or Email.";
+      await navigator.share({title:"MRS Engineering App", text:text});
+      document.getElementById("mrs-share-status").textContent = "Sharing options opened.";
     } else {
-      window.prompt("Copy this MRS Engineering app link:", MRS_APP_URL);
+      await navigator.clipboard.writeText(text);
+      document.getElementById("mrs-share-status").textContent = "Sharing message copied. Use WhatsApp/Email to send it.";
     }
   } catch(e) {
-    if (e && e.name === "AbortError") {
-      document.getElementById("mrs-share-status").textContent = "Sharing cancelled.";
-    } else {
-      document.getElementById("mrs-share-status").textContent = "Could not open sharing. Use Copy Sharing Message.";
-    }
+    document.getElementById("mrs-share-status").textContent = "Sharing cancelled.";
   }
 }
 async function copyMRSShareInstructions() {
-  const text = mrsShareText();
   try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      document.getElementById("mrs-share-status").textContent = "App link copied. Paste it into WhatsApp or Email.";
-    } else {
-      window.prompt("Copy this MRS Engineering app link:", MRS_APP_URL);
-    }
+    await navigator.clipboard.writeText(mrsShareText());
+    document.getElementById("mrs-share-status").textContent = "Sharing message copied.";
   } catch(e) {
-    window.prompt("Copy this MRS Engineering app link:", MRS_APP_URL);
+    document.getElementById("mrs-share-status").textContent = "Please copy the message manually.";
   }
 }
 </script>
