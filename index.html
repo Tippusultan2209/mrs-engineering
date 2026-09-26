@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -127,10 +127,61 @@ th,td{border:1px solid #d4dbe1;padding:7px;text-align:left}th{background:#e8eef3
 <button onclick="exportCSV('jobs')">EXPORT JOBS EXCEL</button>
 <button onclick="exportCSV('raw')">EXPORT RAW MATERIAL EXCEL</button>
 <button onclick="exportCSV('process')">EXPORT PROCESS EXCEL</button>
-<button onclick="exportCSV('payments')">EXPORT PAYMENTS EXCEL</button>
+<button onclick="exportCSV('payments')">EXPORT PAYMENTS EXCEL</button><button onclick="exportCSV('purchases')">EXPORT PURCHASE BILLS EXCEL</button><button onclick="exportCSV('sales')">EXPORT SALES EXCEL</button>
 <button onclick="exportCSV('all')">EXPORT ALL DATA</button>
 <p class="note">The exported CSV files open directly in Microsoft Excel.</p>
 <div id="paymentTable" class="tablewrap"></div>
+</div>
+
+<div id="purchasePage" class="card hidden">
+<h3>Purchase Bills</h3>
+<div class="grid">
+<div><label>Supplier Name</label><input id="puSupplier"></div>
+<div><label>Supplier GSTIN</label><input id="puGSTIN"></div>
+<div><label>Purchase Bill No.</label><input id="puBillNo"></div>
+<div><label>Bill Date</label><input id="puBillDate" type="date"></div>
+<div><label>PO / Reference No.</label><input id="puPO"></div>
+<div><label>Material / Item</label><input id="puItem"></div>
+<div><label>Part No.</label><input id="puPart"></div>
+<div><label>Material Grade</label><input id="puGrade"></div>
+<div><label>Quantity</label><input id="puQty" type="number" step="0.001"></div>
+<div><label>Unit</label><select id="puUnit"><option>Nos</option><option>Kg</option><option>Meter</option><option>Ton</option><option>Set</option><option>Other</option></select></div>
+<div><label>Rate ₹</label><input id="puRate" type="number" step="0.01"></div>
+<div><label>GST %</label><input id="puGST" type="number" step="0.01" value="18"></div>
+<div><label>Payment Status</label><select id="puStatus"><option>Pending</option><option>Part Paid</option><option>Paid</option></select></div>
+<div><label>Payment Date</label><input id="puPaymentDate" type="date"></div>
+<div><label>Due Date</label><input id="puDueDate" type="date"></div>
+<div><label>Bill File</label><input id="puFile" type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="purchaseFileInfo()"></div>
+</div>
+<div id="puTotals" class="card"><b>Taxable: ₹0.00 | GST: ₹0.00 | Total: ₹0.00</b></div>
+<button onclick="savePurchase()">SAVE PURCHASE BILL</button><button class="gray" onclick="clearPurchase()">CLEAR</button>
+<div id="puFileStatus" class="note"></div>
+<div id="purchaseTable" class="tablewrap"></div>
+</div>
+
+<div id="salesPage" class="card hidden">
+<h3>Sales Details / Sales Register</h3>
+<div class="grid">
+<div><label>Customer Name</label><input id="saCustomer"></div>
+<div><label>Customer GSTIN</label><input id="saGSTIN"></div>
+<div><label>PO No.</label><input id="saPO"></div>
+<div><label>Part No.</label><input id="saPart"></div>
+<div><label>Description</label><input id="saDesc"></div>
+<div><label>Invoice No.</label><input id="saInvoiceNo"></div>
+<div><label>Invoice Date</label><input id="saInvoiceDate" type="date" onchange="autoSalesDue()"></div>
+<div><label>Quantity</label><input id="saQty" type="number" step="0.001"></div>
+<div><label>Rate ₹</label><input id="saRate" type="number" step="0.01"></div>
+<div><label>GST Type</label><select id="saGSTType"><option>CGST + SGST</option><option>IGST</option><option>Exempt</option></select></div>
+<div><label>GST %</label><input id="saGST" type="number" step="0.01" value="18"></div>
+<div><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01"></div>
+<div><label>Payment Due Date (45 Days)</label><input id="saDue" type="date" readonly></div>
+<div><label>Payment Status</label><select id="saStatus"><option>Pending</option><option>Part Paid</option><option>Paid</option><option>Overdue</option></select></div>
+<div><label>Invoice File</label><input id="saFile" type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="salesFileInfo()"></div>
+</div>
+<div id="saTotals" class="card"><b>Taxable: ₹0.00 | CGST: ₹0.00 | SGST: ₹0.00 | IGST: ₹0.00 | Invoice Total: ₹0.00 | Balance: ₹0.00</b></div>
+<button onclick="saveSale()">SAVE SALES ENTRY</button><button class="gray" onclick="clearSale()">CLEAR</button>
+<div id="saFileStatus" class="note"></div>
+<div id="salesTable" class="tablewrap"></div>
 </div>
 
 <div id="partReportPage" class="card hidden">
@@ -208,9 +259,11 @@ const defaultDB={
   {username:"manager",password:"manager123",role:"Manager"},
   {username:"operator",password:"operator123",role:"Operator"}
  ],
- jobs:[],raw:[],processes:[]
+ jobs:[],raw:[],processes:[],purchases:[],sales:[]
 };
 let db=JSON.parse(localStorage.getItem("industrialJobDB")||"null")||defaultDB;
+db.purchases=db.purchases||[];
+db.sales=db.sales||[];
 let currentUser=null;
 
 function persist(){localStorage.setItem("industrialJobDB",JSON.stringify(db));}
@@ -232,12 +285,19 @@ function doLogin(){
 function logout(){location.reload();}
 function buildNav(){
  const nav=document.getElementById("nav");nav.innerHTML="";
- const pages=[["dashboard","Dashboard"],["jobPage","Job / PO"],["rawPage","Raw Material"],["processPage","Child Process"],["partReportPage","Part-Wise Report"],["trackPage","Tracking & Excel"],["sharePage","Share User App"]];
+ const pages=[["dashboard","Dashboard"],["jobPage","Job / PO"],["rawPage","Raw Material"],["processPage","Child Process"],["purchasePage","Purchase Bills"],["salesPage","Sales Details"],["partReportPage","Part-Wise Report"],["trackPage","Tracking & Excel"],["sharePage","Share User App"]];
  if(currentUser.role==="Admin")pages.push(["usersPage","Users & Rights"]);
  pages.forEach(([id,label])=>{const b=document.createElement("button");b.textContent=label;b.onclick=()=>showPage(id);nav.appendChild(b);});
+ const out=document.createElement("button");
+ out.textContent="LOGOUT";
+ out.title="Logout from MRS Engineering";
+ out.style.background="#b91c1c";
+ out.style.color="#fff";
+ out.onclick=logout;
+ nav.appendChild(out);
 }
 function showPage(id){
- ["dashboard","jobPage","rawPage","processPage","partReportPage","trackPage","sharePage","usersPage"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+ ["dashboard","jobPage","rawPage","processPage","purchasePage","salesPage","partReportPage","trackPage","sharePage","usersPage"].forEach(x=>document.getElementById(x).classList.add("hidden"));
  document.getElementById(id).classList.remove("hidden");
  render();
 }
@@ -470,12 +530,17 @@ function render(){
  <div class="kpi">Raw Material<b>₹${rm.toFixed(2)}</b></div>
  <div class="kpi">Invoice<b>₹${inv.toFixed(2)}</b></div>
  <div class="kpi">Paid<b>₹${paid.toFixed(2)}</b></div>
- <div class="kpi">Balance<b>₹${(inv-paid).toFixed(2)}</b></div>`;
+ <div class="kpi">Balance<b>₹${(inv-paid).toFixed(2)}</b></div>
+ <div class="kpi">Purchases<b>₹${db.purchases.reduce((s,x)=>s+(+x.total||0),0).toFixed(2)}</b></div>
+ <div class="kpi">Sales<b>₹${db.sales.reduce((s,x)=>s+(+x.total||0),0).toFixed(2)}</b></div>
+ <div class="kpi">Sales Due<b>₹${db.sales.reduce((s,x)=>s+Math.max(0,(+x.total||0)-(+x.paid||0)),0).toFixed(2)}</b></div>`;
  document.getElementById("jobTable").innerHTML=makeTable(db.jobs,"jobs");
  document.getElementById("rawTable").innerHTML=makeTable(db.raw,"raw");
  db.processes.forEach((x,i)=>{if(!x.sequence)x.sequence=i+1;});
 db.processes.sort((a,b)=>(+a.sequence||0)-(+b.sequence||0));
 document.getElementById("processTable").innerHTML=makeTable(db.processes,"processes");
+ document.getElementById("purchaseTable").innerHTML=makeTable(db.purchases,"purchases");
+ document.getElementById("salesTable").innerHTML=makeTable(db.sales,"sales");
  document.getElementById("paymentTable").innerHTML=makeTable(payments());
  renderPartReport();
  if(currentUser.role==="Admin")document.getElementById("usersTable").innerHTML=makeTable(db.users);
@@ -495,8 +560,36 @@ function exportCSV(type){
  else if(type==="raw")downloadCSV("Raw_Materials",db.raw);
  else if(type==="process")downloadCSV("Processes",db.processes);
  else if(type==="payments")downloadCSV("Payments",payments());
- else {downloadCSV("Jobs",db.jobs);setTimeout(()=>downloadCSV("Raw_Materials",db.raw),400);setTimeout(()=>downloadCSV("Processes",db.processes),800);setTimeout(()=>downloadCSV("Payments",payments()),1200);}
+ else if(type==="purchases")downloadCSV("Purchase_Bills",db.purchases);
+ else if(type==="sales")downloadCSV("Sales_Register",db.sales);
+ else {downloadCSV("Jobs",db.jobs);setTimeout(()=>downloadCSV("Raw_Materials",db.raw),400);setTimeout(()=>downloadCSV("Processes",db.processes),800);setTimeout(()=>downloadCSV("Payments",payments()),1200);setTimeout(()=>downloadCSV("Purchase_Bills",db.purchases),1600);setTimeout(()=>downloadCSV("Sales_Register",db.sales),2000);}
 }
+function purchaseTotals(){
+ const qty=+puQty.value||0, rate=+puRate.value||0, gst=+puGST.value||0;
+ const taxable=qty*rate, tax=taxable*gst/100, total=taxable+tax;
+ puTotals.innerHTML=`<b>Taxable: ₹${taxable.toFixed(2)} | GST: ₹${tax.toFixed(2)} | Total: ₹${total.toFixed(2)}</b>`; return {taxable,tax,total};
+}
+function purchaseFileInfo(){const f=puFile.files[0];puFileStatus.textContent=f?`Selected: ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`:"";}
+function savePurchase(){
+ if(currentUser.role==="Operator")return;
+ const t=purchaseTotals(), f=puFile.files[0];
+ if(f&&f.size>15*1024*1024){alert("Bill file must be below 15 MB.");return;}
+ const rec={supplier:puSupplier.value,gstin:puGSTIN.value,billNo:puBillNo.value,billDate:puBillDate.value,po:puPO.value,item:puItem.value,part:puPart.value,grade:puGrade.value,qty:+puQty.value||0,unit:puUnit.value,rate:+puRate.value||0,gstPct:+puGST.value||0,taxable:t.taxable,gst:t.tax,total:t.total,status:puStatus.value,paymentDate:puPaymentDate.value,dueDate:puDueDate.value,fileName:f?f.name:""};
+ db.purchases.push(rec);persist();clearPurchase();render();alert("Purchase bill saved.");
+}
+function clearPurchase(){["puSupplier","puGSTIN","puBillNo","puBillDate","puPO","puItem","puPart","puGrade","puQty","puRate","puGST","puPaymentDate","puDueDate"].forEach(id=>document.getElementById(id).value="");puGST.value=18;puUnit.value="Nos";puStatus.value="Pending";puFile.value="";puFileStatus.textContent="";purchaseTotals();}
+function autoSalesDue(){const v=saInvoiceDate.value;if(!v){saDue.value="";return;}const d=new Date(v+"T00:00:00");d.setDate(d.getDate()+45);saDue.value=d.toISOString().slice(0,10);}
+function salesTotals(){const qty=+saQty.value||0,rate=+saRate.value||0,g=+saGST.value||0,paid=+saPaid.value||0,taxable=qty*rate;let cg=0,sg=0,ig=0;if(saGSTType.value==="CGST + SGST"){cg=taxable*g/200;sg=cg;}else if(saGSTType.value==="IGST"){ig=taxable*g/100;}const total=taxable+cg+sg+ig,balance=total-paid;saTotals.innerHTML=`<b>Taxable: ₹${taxable.toFixed(2)} | CGST: ₹${cg.toFixed(2)} | SGST: ₹${sg.toFixed(2)} | IGST: ₹${ig.toFixed(2)} | Invoice Total: ₹${total.toFixed(2)} | Balance: ₹${balance.toFixed(2)}</b>`;return {taxable,cg,sg,ig,total,balance};}
+function salesFileInfo(){const f=saFile.files[0];saFileStatus.textContent=f?`Selected: ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`:"";}
+function saveSale(){
+ if(currentUser.role==="Operator")return;
+ const t=salesTotals(),f=saFile.files[0];if(f&&f.size>15*1024*1024){alert("Invoice file must be below 15 MB.");return;}
+ const rec={customer:saCustomer.value,gstin:saGSTIN.value,po:saPO.value,part:saPart.value,description:saDesc.value,invoiceNo:saInvoiceNo.value,invoiceDate:saInvoiceDate.value,qty:+saQty.value||0,rate:+saRate.value||0,gstType:saGSTType.value,gstPct:+saGST.value||0,taxable:t.taxable,cgst:t.cg,sgst:t.sg,igst:t.ig,total:t.total,paid:+saPaid.value||0,balance:t.balance,dueDate:saDue.value,status:saStatus.value,fileName:f?f.name:""};
+ db.sales.push(rec);persist();clearSale();render();alert("Sales entry saved.");
+}
+function clearSale(){["saCustomer","saGSTIN","saPO","saPart","saDesc","saInvoiceNo","saInvoiceDate","saQty","saRate","saGST","saPaid","saDue"].forEach(id=>document.getElementById(id).value="");saGST.value=18;saGSTType.value="CGST + SGST";saStatus.value="Pending";saFile.value="";saFileStatus.textContent="";salesTotals();}
+['puQty','puRate','puGST'].forEach(id=>document.getElementById(id)?.addEventListener('input',purchaseTotals));
+['saQty','saRate','saGST','saPaid','saGSTType'].forEach(id=>document.getElementById(id)?.addEventListener('input',salesTotals));
 function addUser(){
  if(currentUser.role!=="Admin")return;
  const u=newUser.value.trim(),p=newPass.value,r=newRole.value;
