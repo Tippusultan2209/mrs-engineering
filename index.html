@@ -66,7 +66,7 @@ th,td{border:1px solid #d4dbe1;padding:7px;text-align:left}th{background:#e8eef3
 <div><label>Status</label><select id="jStatus"><option>Planned</option><option>In Process</option><option>Completed</option><option>Dispatched</option><option>Closed</option></select></div>
 </div>
 <button onclick="addJob()">SAVE / UPDATE JOB</button><button class="gray" onclick="clearJob();editType=null;editIndex=-1">CLEAR / CANCEL</button>
-<span id="drawingFileStatus" class="note"></span><p class="note">Attach PDF, DWG, DXF, STEP, SLDPRT, JPG or PNG drawing file (maximum 15 MB).</p>
+<div id="drawingFileStatus" class="note" style="margin:10px 0;font-weight:600"></div><div id="drawingFileActions" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"></div><p class="note">Attach PDF, DWG, DXF, STEP, SLDPRT, JPG or PNG drawing file (maximum 15 MB).</p>
 <div id="jobTable" class="tablewrap"></div>
 </div>
 
@@ -277,13 +277,28 @@ function autoPaymentDue(){
 }
 function openDrawingFile(i){
  const r=db.jobs[i];
- if(!r.drawingPDF){alert("No drawing file attached.");return;}
- const w=window.open();
- if(w){w.document.write('<title>'+String(r.drawingPDFName||"Drawing")+'</title><iframe src="'+r.drawingPDF+'" style="width:100%;height:100vh;border:0"></iframe>');}
+ if(!r || !r.drawingPDF){alert("No drawing file attached.");return;}
+ const name=r.drawingPDFName||"Drawing";
+ const ext=name.toLowerCase().split(".").pop();
+ if(["pdf","jpg","jpeg","png"].includes(ext)){
+   const w=window.open();
+   if(w){
+     w.document.write("<title>"+String(name).replace(/</g,"&lt;")+"</title><iframe src='"+r.drawingPDF+"' style="+"width:100%;height:100vh;border:0"></iframe>");
+     w.document.close();
+   }
+ }else{
+   const a=document.createElement("a");
+   a.href=r.drawingPDF;
+   a.download=name;
+   document.body.appendChild(a);
+   a.click();
+   a.remove();
+ }
 }
 function clearJob(){
  ["jCustomer","jPO","jPODate","jPart","jDesc","jQty","jRate","jSchedule","jDispatch","jInvoiceNo","jInvoiceDate","jInvoice","jPaid","jDue"].forEach(x=>document.getElementById(x).value="");
  document.getElementById("drawingFileStatus").textContent="";
+ document.getElementById("drawingFileActions").innerHTML="";
  document.getElementById("jDrawingPDF").value="";
 }
 function updateLabels(){
@@ -398,7 +413,7 @@ function editJob(i){
  jSchedule.value=x.schedule||"";jDispatch.value=x.dispatchDate||"";jInvoiceNo.value=x.invoiceNo||"";
  jInvoiceDate.value=x.invoiceDate||"";jInvoice.value=x.invoice||0;jPaid.value=x.paid||0;jDue.value=x.due||"";
  jStatus.value=x.status||"Planned";
- document.getElementById("drawingFileStatus").textContent=x.drawingPDFName?("Attached File: "+x.drawingPDFName):"No drawing file attached";
+ document.getElementById("drawingFileStatus").textContent=x.drawingPDFName?("📎 Attached File: "+x.drawingPDFName):"No drawing file attached";
  editType="jobs";editIndex=i;showPage("jobPage");
 }
 function editRaw(i){
@@ -426,11 +441,22 @@ function editRecord(type,index){
 }
 function makeTable(data,type){
  if(!data.length)return "<p class='note'>No records available.</p>";
- const keys=Object.keys(data[0]);let h="<table><tr>";
- keys.forEach(k=>h+="<th>"+k+"</th>");
+ let keys=Object.keys(data[0]);
+ if(type==="jobs") keys=keys.filter(k=>k!=="drawingPDF");
+ let h="<table><tr>";
+ keys.forEach(k=>h+="<th>"+(k==="drawingPDFName"?"Drawing File":k)+"</th>");
  if(type)h+="<th>Actions</th>";
  h+="</tr>";
- data.forEach((r,i)=>{h+="<tr>";keys.forEach(k=>h+="<td>"+String(r[k]??"")+"</td>");if(type)h+="<td>"+rowActions(type,i)+"</td>";h+="</tr>";});
+ data.forEach((r,i)=>{
+   h+="<tr>";
+   keys.forEach(k=>{
+     let v=r[k]??"";
+     if(k==="drawingPDFName") v=v ? "📎 "+v : "No file";
+     h+="<td>"+String(v).replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</td>";
+   });
+   if(type)h+="<td>"+rowActions(type,i)+"</td>";
+   h+="</tr>";
+ });
  return h+"</table>";
 }
 function render(){
